@@ -75,22 +75,6 @@ class Block
      */
     public function exists($id)
     {
-        return Block::exists($id);
-    }
-
-    /**
-     * Checks if a shared memory block with the provided id exists or not
-     *
-     * In order to check for shared memory existance, we have to open it with
-     * reading access. If it doesn't exist, warnings will be cast, therefore we
-     * suppress those with the @ operator.
-     *
-     * @access public
-     * @param string $id ID of the shared memory block you want to check
-     * @return boolean True if the block exists, false if it doesn't
-     */
-    public static function exists($id)
-    {
         $status = @shmop_open($id, "a", 0, 0);
         return $status;
     }
@@ -108,11 +92,7 @@ class Block
      */
     public function write($data): bool
     {
-        $size = mb_strlen($data, 'UTF-8');
-
-        if (null === $this->shmid) {  
-            return false;
-        }         
+        $size = mb_strlen($data, 'UTF-8');     
 
         if ($this->exists($this->id)) {
             shmop_delete($this->shmid);
