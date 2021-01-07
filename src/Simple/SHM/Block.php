@@ -39,13 +39,13 @@ class Block
      */
     public function __construct($id = null)
     {
-        if($id === null) {
+        $this->id = $id;
+
+        if ($this->id === null) {
             $this->id = $this->generateID();
-        } else {
-            $this->id = $id;
         }
 
-        if($this->exists($this->id)) {
+        if ($this->exists($this->id)) {
             $this->shmid = shmop_open($this->id, "w", 0, 0);
         }
     }
@@ -75,6 +75,22 @@ class Block
      */
     public function exists($id)
     {
+        return Block::exists($id);
+    }
+
+    /**
+     * Checks if a shared memory block with the provided id exists or not
+     *
+     * In order to check for shared memory existance, we have to open it with
+     * reading access. If it doesn't exist, warnings will be cast, therefore we
+     * suppress those with the @ operator.
+     *
+     * @access public
+     * @param string $id ID of the shared memory block you want to check
+     * @return boolean True if the block exists, false if it doesn't
+     */
+    public static function exists($id)
+    {
         $status = @shmop_open($id, "a", 0, 0);
         return $status;
     }
@@ -90,29 +106,35 @@ class Block
      * @access public
      * @param string $data The data that you wan't to write into the shared memory block
      */
-    public function write($data)
+    public function write($data): bool
     {
         $size = mb_strlen($data, 'UTF-8');
 
-        if($this->exists($this->id)) {
+        if (null === $this->shmid) {  
+            return false;
+        }         
+
+        if ($this->exists($this->id)) {
             shmop_delete($this->shmid);
             shmop_close($this->shmid);
-            $this->shmid = shmop_open($this->id, "c", $this->perms, $size);
-            shmop_write($this->shmid, $data, 0);
-        } else {
-            $this->shmid = shmop_open($this->id, "c", $this->perms, $size);
-            shmop_write($this->shmid, $data, 0);
         }
+
+        $this->shmid = shmop_open($this->id, "c", $this->perms, $size);
+        return (bool)shmop_write($this->shmid, $data, 0);    
     }
 
     /**
      * Reads from a shared memory block
      *
      * @access public
-     * @return string The data read from the shared memory block
+     * @return string The data read from the shared memory block. false on failure
      */
     public function read()
     {
+        if (null === $this->shmid) {  
+            return false;
+        } 
+
         $size = shmop_size($this->shmid);
         $data = shmop_read($this->shmid, 0, $size);
 
@@ -124,9 +146,13 @@ class Block
      *
      * @access public
      */
-    public function delete()
+    public function delete(): bool
     {
-        shmop_delete($this->shmid);
+        if (null !== $this->shmid) {
+            return shmop_delete($this->shmid);
+        }
+
+        return false; 
     }
 
     /**
@@ -167,6 +193,8 @@ class Block
      */
     public function __destruct()
     {
-        shmop_close($this->shmid);
+        if (null !== $this->shmid) {
+            shmop_close($this->shmid);
+        }
     }
 }
